@@ -19,8 +19,8 @@ data['Sex'] = data['Sex'].apply(lambda s: 1 if s == 'male' else 0)
 data['Deceased'] = data['Survived'].apply(lambda s: 1 - s)
 
 # select features and labels for training
-dataset_X = data[['Sex', 'Age', 'Pclass', 'SibSp', 'Parch', 'Fare']].as_matrix()
-dataset_Y = data[['Deceased', 'Survived']].as_matrix()
+dataset_X = data[['Sex', 'Age', 'Pclass', 'SibSp', 'Parch', 'Fare']].values
+dataset_Y = data[['Deceased', 'Survived']].values
 
 # split training data and validation set data
 X_train, X_val, y_train, y_val = train_test_split(dataset_X, dataset_Y,
@@ -54,6 +54,7 @@ train_op = tf.train.GradientDescentOptimizer(0.001).minimize(cost)
 correct_pred = tf.equal(tf.argmax(y, 1), tf.argmax(y_pred, 1))
 acc_op = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
+saver = tf.train.Saver()
 ################################
 # Training and Evaluating the model
 ################################
@@ -66,34 +67,38 @@ with tf.Session() as sess:
     # training loop
     for epoch in range(10):
         total_loss = 0.
-        for i in range(len(X_train)):
+        for i in range(len(X_train)-5):
             # prepare feed data and run
             feed_dict = {X: [X_train[i]], y: [y_train[i]]}
+            feed_dict = {X: X_train[i:i+5], y: y_train[i:i+5]}
             _, loss = sess.run([train_op, cost], feed_dict=feed_dict)
             total_loss += loss
         # display loss per epoch
         print('Epoch: %04d, total loss=%.9f' % (epoch + 1, total_loss))
+    
+        saver.save(sess, "./model.ckpt", global_step=epoch)
 
     # Accuracy calculated by TensorFlow
     accuracy = sess.run(acc_op, feed_dict={X: X_val, y: y_val})
     print("Accuracy on validation set: %.9f" % accuracy)
 
     # Accuracy calculated by NumPy
-    pred = sess.run(y_pred, feed_dict={X: X_val})
-    correct = np.equal(np.argmax(pred, 1), np.argmax(y_val, 1))
-    numpy_accuracy = np.mean(correct.astype(np.float32))
-    print("Accuracy on validation set (numpy): %.9f" % numpy_accuracy)
+    # pred = sess.run(y_pred, feed_dict={X: X_val})
+    # correct = np.equal(np.argmax(pred, 1), np.argmax(y_val, 1))
+    # print correct
+    # numpy_accuracy = np.mean(correct.astype(np.float32))
+    # print("Accuracy on validation set (numpy): %.9f" % numpy_accuracy)
 
-    # predict on test data
-    testdata = pd.read_csv('data/test.csv')
-    testdata = testdata.fillna(0)
-    # convert ['male', 'female'] values of Sex to [1, 0]
-    testdata['Sex'] = testdata['Sex'].apply(lambda s: 1 if s == 'male' else 0)
-    X_test = testdata[['Sex', 'Age', 'Pclass', 'SibSp', 'Parch', 'Fare']]
-    predictions = np.argmax(sess.run(y_pred, feed_dict={X: X_test}), 1)
-    submission = pd.DataFrame({
-        "PassengerId": testdata["PassengerId"],
-        "Survived": predictions
-    })
+    # # predict on test data
+    # testdata = pd.read_csv('data/test.csv')
+    # testdata = testdata.fillna(0)
+    # # convert ['male', 'female'] values of Sex to [1, 0]
+    # testdata['Sex'] = testdata['Sex'].apply(lambda s: 1 if s == 'male' else 0)
+    # X_test = testdata[['Sex', 'Age', 'Pclass', 'SibSp', 'Parch', 'Fare']]
+    # predictions = np.argmax(sess.run(y_pred, feed_dict={X: X_test}), 1)
+    # submission = pd.DataFrame({
+    #     "PassengerId": testdata["PassengerId"],
+    #     "Survived": predictions
+    # })
 
-    submission.to_csv("titanic-submission.csv", index=False)
+    # submission.to_csv("titanic-submission.csv", index=False)
